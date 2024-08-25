@@ -1,37 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:weather_app/data/api/api_service.dart';
-import 'package:weather_app/data/model/weather_results.dart';
+import 'package:weather_app/provider/weather_provider.dart';
 
-class HomePage extends StatefulWidget {
+class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  late Future<WeatherResults> _weather;
-
-  @override
-  void initState() {
-    super.initState();
-    _weather = ApiService().getWeather('jakarta');
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: FutureBuilder<WeatherResults>(
-          future: _weather,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const CircularProgressIndicator();
-            } else if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}');
-            } else if (snapshot.hasData) {
-              final weatherData = snapshot.data!.weather.first;
-              final tempCelcius = snapshot.data!.main.temp - 273.15;
+    return ChangeNotifierProvider(
+      create: (_) => WeatherProvider(apiService: ApiService()),
+      child: Scaffold(
+        body: Consumer<WeatherProvider>(
+          builder: (context, state, _) {
+            if (state.state == ResultState.loading) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (state.state == ResultState.hasData) {
+              final weatherData = state.result.weather.first;
+              final tempKelvin = state.result.main.temp;
+              final tempCelcius = tempKelvin - 273.15;
 
               return Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -42,7 +29,7 @@ class _HomePageState extends State<HomePage> {
                       const Icon(Icons.location_on, size: 35),
                       const SizedBox(width: 5),
                       Text(
-                        snapshot.data!.name,
+                        state.result.name,
                         style: const TextStyle(
                           fontWeight: FontWeight.w400,
                           fontSize: 35,
@@ -51,7 +38,24 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                   Image.network(
-                      'https://openweathermap.org/img/wn/${weatherData.icon}@4x.png'),
+                    'https://openweathermap.org/img/wn/${weatherData.icon}@4x.png',
+                    loadingBuilder: (BuildContext context, Widget child,
+                        ImageChunkEvent? loadingProgress) {
+                      if (loadingProgress == null) {
+                        return child;
+                      } else {
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    (loadingProgress.expectedTotalBytes ??
+                                        1.0)
+                                : null,
+                          ),
+                        );
+                      }
+                    },
+                  ),
                   Text(
                     '${tempCelcius.toStringAsFixed(0)} °C',
                     style: const TextStyle(
@@ -68,8 +72,23 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               );
+            } else if (state.state == ResultState.noData) {
+              return Center(
+                child: Material(
+                  child: Text(
+                    state.message,
+                    style: const TextStyle(
+                      fontSize: 25,
+                    ),
+                  ),
+                ),
+              );
             } else {
-              return const Text('No Data Found');
+              return const Center(
+                child: Material(
+                  child: Text(''),
+                ),
+              );
             }
           },
         ),
