@@ -8,7 +8,7 @@ class WeatherProvider extends ChangeNotifier {
   final ApiService apiService;
 
   WeatherProvider({required this.apiService}) {
-    _fetchWeather();
+    _fetchWeather('Sleman');
   }
 
   late WeatherResults _weatherResults;
@@ -21,15 +21,15 @@ class WeatherProvider extends ChangeNotifier {
 
   ResultState get state => _state;
 
-  Future<dynamic> _fetchWeather() async {
+  Future<dynamic> _fetchWeather(String cityName) async {
     try {
       _state = ResultState.loading;
       notifyListeners();
-      final weather = await apiService.getWeather('Sleman');
+      final weather = await apiService.getWeather(cityName);
       if (weather.name.isEmpty) {
         _state = ResultState.noData;
         notifyListeners();
-        return _message = 'Empty Data';
+        return _message = 'City Not Found';
       } else {
         _state = ResultState.hasData;
         notifyListeners();
